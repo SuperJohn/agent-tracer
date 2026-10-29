@@ -1,0 +1,28 @@
+# Receives OTLP from the app and forwards traces to Jaeger v2 on the compose
+# network. Jaeger's own OTLP ports are not published, so host 4317/4318 belong
+# to this collector. To also fan out to Phoenix, use
+# deploy/otel-collector-phoenix.yaml while the phoenix profile is up.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger]

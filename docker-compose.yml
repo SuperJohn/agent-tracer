@@ -1,0 +1,27 @@
+# Optional local backends. The app does not need this for tests or for the
+# static site. `make run` writes a JSON file either way, and exports OTLP/HTTP
+# only when OTEL_EXPORTER_OTLP_ENDPOINT is set (http://127.0.0.1:4318).
+
+services:
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    ports:
+      - "16686:16686"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.1
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    profiles: ["phoenix"]
+    ports:
+      - "6006:6006"
+      - "4319:4317"

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agenttrace — Houghton Labs</title>
+  <meta name="description" content="OpenTelemetry traces for a warehouse-triage agent. Synthetic incidents only.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#inc-1042">
+      <span class="mark" aria-hidden="true"></span>
+      <span>
+        <strong>agenttrace</strong>
+        <em>Houghton Labs</em>
+      </span>
+    </a>
+    <p class="tagline">OpenTelemetry traces for a warehouse-triage agent. Synthetic incidents only.</p>
+    <nav class="views" aria-label="View">
+      <button type="button" id="view-trace" aria-pressed="true">Trace</button>
+      <button type="button" id="view-slo" aria-pressed="false">SLOs</button>
+    </nav>
+  </header>
+  <main id="app">
+    <p class="loading">Loading recorded traces…</p>
+  </main>
+  <script src="assets/app.js"></script>
+</body>
+</html>

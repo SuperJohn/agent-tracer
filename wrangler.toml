@@ -1,0 +1,6 @@
+# Cloudflare Pages — suggested project name: agent-tracer
+# Framework preset = None, Build command = (empty),
+# Output / root directory = site, Production branch = main
+name = "agent-tracer"
+compatibility_date = "2026-10-28"
+pages_build_output_dir = "site"

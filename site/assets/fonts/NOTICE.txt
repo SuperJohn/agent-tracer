@@ -1,0 +1,6 @@
+IBM Plex Sans and IBM Plex Mono are copyright IBM and licensed under the
+SIL Open Font License 1.1.
+
+Source Serif 4 is copyright Adobe and licensed under the SIL Open Font License 1.1.
+
+The woff2 files are the Latin subsets published by Fontsource from the Google Fonts releases.

@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+runs/
+.playwright-mcp/
+dist/
+build/
+.python-version
