@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "percentile_method": "linear",
+  "price_note": "Illustrative small-model card for mock-triage-v1 ($0.15 / 1M input tokens, $0.60 / 1M output tokens). Not a vendor bill. Ollama is local, so its dollar cost stays zero while token counts are still recorded.",
+  "task_count": 16,
+  "task_error_count": 3,
+  "task_error_rate": 0.1875,
+  "tool_call_count": 59,
+  "tool_error_count": 3,
+  "tool_error_rate": 0.050847,
+  "tokens_per_task": {
+    "p50": 4025.0,
+    "p95": 5071.5,
+    "mean": 4028.25
+  },
+  "cost_usd_per_task": {
+    "p50": 0.00075787,
+    "p95": 0.00093487,
+    "mean": 0.00075215
+  },
+  "tools": [
+    {
+      "name": "catalog.lookup",
+      "calls": 16,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms": {
+        "p50": 34.0,
+        "p95": 54.25,
+        "mean": 35.9375
+      }
+    },
+    {
+      "name": "freshness.check",
+      "calls": 16,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms": {
+        "p50": 67.5,
+        "p95": 184.0,
+        "mean": 89.5
+      }
+    },
+    {
+      "name": "incident.note",
+      "calls": 4,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms": {
+        "p50": 19.0,
+        "p95": 21.7,
+        "mean": 19.0
+      }
+    },
+    {
+      "name": "lineage.upstream",
+      "calls": 4,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms": {
+        "p50": 100.0,
+        "p95": 121.0,
+        "mean": 103.0
+      }
+    },
+    {
+      "name": "schema.diff",
+      "calls": 6,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms": {
+        "p50": 114.0,
+        "p95": 145.0,
+        "mean": 116.6667
+      }
+    },
+    {
+      "name": "sensor.status",
+      "calls": 7,
+      "errors": 2,
+      "error_rate": 0.285714,
+      "latency_ms": {
+        "p50": 55.0,
+        "p95": 1470.0,
+        "mean": 448.8571
+      }
+    },
+    {
+      "name": "warehouse.sample",
+      "calls": 6,
+      "errors": 1,
+      "error_rate": 0.166667,
+      "latency_ms": {
+        "p50": 170.0,
+        "p95": 532.5,
+        "mean": 241.6667
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "inc-1042",
+      "title": "orders_daily missed the freshness SLO",
+      "outcome": "error",
+      "error_type": "timeout",
+      "failing_span": "execute_tool sensor.status",
+      "steps": 14,
+      "duration_ms": 3274,
+      "input_tokens": 5208,
+      "output_tokens": 378,
+      "tokens": 5586,
+      "cost_usd": 0.001008
+    },
+    {
+      "id": "inc-1041",
+      "title": "orders_hourly is inside the freshness SLO",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 9,
+      "duration_ms": 886,
+      "input_tokens": 2810,
+      "output_tokens": 166,
+      "tokens": 2976,
+      "cost_usd": 0.0005211
+    },
+    {
+      "id": "inc-1101",
+      "title": "customers_daily freshness check",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 13,
+      "duration_ms": 1352,
+      "input_tokens": 3525,
+      "output_tokens": 355,
+      "tokens": 3880,
+      "cost_usd": 0.00074175
+    },
+    {
+      "id": "inc-1102",
+      "title": "payments_daily schema and sample",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 12,
+      "duration_ms": 1525,
+      "input_tokens": 3790,
+      "output_tokens": 380,
+      "tokens": 4170,
+      "cost_usd": 0.0007965
+    },
+    {
+      "id": "inc-1103",
+      "title": "refunds_daily warehouse sample failed",
+      "outcome": "error",
+      "error_type": "500",
+      "failing_span": "execute_tool warehouse.sample",
+      "steps": 10,
+      "duration_ms": 1796,
+      "input_tokens": 3162,
+      "output_tokens": 288,
+      "tokens": 3450,
+      "cost_usd": 0.0006471
+    },
+    {
+      "id": "inc-1104",
+      "title": "sessions_hourly sensor check",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 9,
+      "duration_ms": 1035,
+      "input_tokens": 3374,
+      "output_tokens": 294,
+      "tokens": 3668,
+      "cost_usd": 0.0006825
+    },
+    {
+      "id": "inc-1105",
+      "title": "inventory_snapshot lineage",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 11,
+      "duration_ms": 1423,
+      "input_tokens": 4585,
+      "output_tokens": 315,
+      "tokens": 4900,
+      "cost_usd": 0.00087675
+    },
+    {
+      "id": "inc-1106",
+      "title": "clicks_raw sensor timed out",
+      "outcome": "error",
+      "error_type": "timeout",
+      "failing_span": "execute_tool sensor.status",
+      "steps": 12,
+      "duration_ms": 2825,
+      "input_tokens": 4350,
+      "output_tokens": 410,
+      "tokens": 4760,
+      "cost_usd": 0.0008985
+    },
+    {
+      "id": "inc-1107",
+      "title": "shipments_daily schema diff",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 12,
+      "duration_ms": 1611,
+      "input_tokens": 4115,
+      "output_tokens": 365,
+      "tokens": 4480,
+      "cost_usd": 0.00083625
+    },
+    {
+      "id": "inc-1108",
+      "title": "invoices_daily breaking schema, tools succeeded",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 12,
+      "duration_ms": 1437,
+      "input_tokens": 3880,
+      "output_tokens": 320,
+      "tokens": 4200,
+      "cost_usd": 0.000774
+    },
+    {
+      "id": "inc-1109",
+      "title": "accounts_daily row sample",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 13,
+      "duration_ms": 1353,
+      "input_tokens": 3145,
+      "output_tokens": 345,
+      "tokens": 3490,
+      "cost_usd": 0.00067875
+    },
+    {
+      "id": "inc-1110",
+      "title": "subscriptions_daily slow freshness read",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 9,
+      "duration_ms": 1514,
+      "input_tokens": 2646,
+      "output_tokens": 330,
+      "tokens": 2976,
+      "cost_usd": 0.0005949
+    },
+    {
+      "id": "inc-1111",
+      "title": "tickets_daily schema diff",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 9,
+      "duration_ms": 1176,
+      "input_tokens": 2858,
+      "output_tokens": 266,
+      "tokens": 3124,
+      "cost_usd": 0.0005883
+    },
+    {
+      "id": "inc-1112",
+      "title": "events_hourly lineage",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 9,
+      "duration_ms": 1190,
+      "input_tokens": 3070,
+      "output_tokens": 272,
+      "tokens": 3342,
+      "cost_usd": 0.0006237
+    },
+    {
+      "id": "inc-1113",
+      "title": "pages_daily sample",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 12,
+      "duration_ms": 1561,
+      "input_tokens": 4205,
+      "output_tokens": 375,
+      "tokens": 4580,
+      "cost_usd": 0.00085575
+    },
+    {
+      "id": "inc-1114",
+      "title": "devices_daily sensor and note",
+      "outcome": "ok",
+      "error_type": "",
+      "failing_span": "",
+      "steps": 12,
+      "duration_ms": 1316,
+      "input_tokens": 4470,
+      "output_tokens": 400,
+      "tokens": 4870,
+      "cost_usd": 0.0009105
+    }
+  ]
+}

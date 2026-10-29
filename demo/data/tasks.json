@@ -1,0 +1,2024 @@
+{
+  "schema_version": 1,
+  "default_model": "mock-triage-v1",
+  "price_note": "Illustrative small-model card for mock-triage-v1 ($0.15 / 1M input tokens, $0.60 / 1M output tokens). Not a vendor bill. Ollama is local, so its dollar cost stays zero while token counts are still recorded.",
+  "price_card": {
+    "mock-triage-v1": {
+      "input_usd_per_million": 0.15,
+      "output_usd_per_million": 0.6
+    }
+  },
+  "agent": {
+    "name": "warehouse-triage",
+    "id": "agent_warehouse_triage",
+    "version": "1.0.0",
+    "description": "Triages synthetic warehouse freshness incidents and decides whether to page.",
+    "system_prompt": "You are warehouse-triage, a DataOps agent. Investigate the synthetic warehouse incident with the provided tools. Prefer catalog, then freshness, then schema or lineage, then the arrival sensor or a row sample. Record an incident note when the checks finish. Never invent rows, owners, or sensor status. If a tool fails, say what is unconfirmed and do not claim the load is safe to retry."
+  },
+  "featured": {
+    "failing": "inc-1042",
+    "healthy": "inc-1041"
+  },
+  "tasks": [
+    {
+      "id": "inc-1042",
+      "title": "orders_daily missed the freshness SLO",
+      "conversation_id": "conv_inc_1042",
+      "story": "Step 12 of 14 is the only error span. execute_tool sensor.status timed out (error.type=timeout, 1500 ms) on the synthetic orchestrator. Step 13 latches case.blocked. Step 14 is a normal chat completion: the model still wrote a partial answer, so a stdout log looks fine. The root span is ERROR.",
+      "prompt": "Incident inc-1042. The mart orders_daily missed its freshness SLO at 2026-10-28T06:40:00Z. Find whether an upstream change or a sensor is blocking the load, and say if it is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 220,
+          "input_tokens": 612,
+          "output_tokens": 48,
+          "text": "Look up orders_daily in the catalog before checking freshness.",
+          "response_id": "chatcmpl_inc_1042_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1042_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "orders_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 260,
+          "input_tokens": 748,
+          "output_tokens": 62,
+          "text": "The mart is owned by revenue-data with a 90 minute SLO. Check freshness at the incident time.",
+          "response_id": "chatcmpl_inc_1042_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1042_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "orders_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 240,
+          "input_tokens": 860,
+          "output_tokens": 70,
+          "text": "Freshness is 372 minutes, past the SLO. Diff the schema against prod before blaming the load.",
+          "response_id": "chatcmpl_inc_1042_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1042_03",
+              "name": "schema.diff",
+              "arguments": {
+                "model": "orders_daily",
+                "baseline": "prod"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 210,
+          "input_tokens": 904,
+          "output_tokens": 58,
+          "text": "The schema change is additive. Walk lineage two hops and name the blocking sensor.",
+          "response_id": "chatcmpl_inc_1042_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1042_04",
+              "name": "lineage.upstream",
+              "arguments": {
+                "model": "orders_daily",
+                "depth": 2
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 190,
+          "input_tokens": 980,
+          "output_tokens": 44,
+          "text": "Lineage stops on sensor raw_orders_arrival. Check that sensor.",
+          "response_id": "chatcmpl_inc_1042_05",
+          "tool_calls": [
+            {
+              "id": "call_inc_1042_05",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_orders_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 280,
+          "input_tokens": 1104,
+          "output_tokens": 96,
+          "text": "orders_daily is 372 minutes stale (SLO 90). The added discount_bps column is nullable, not blocking. sensor.status timed out, so raw_orders_arrival is unconfirmed. Do not retry. Page platform-ingest and cite inc-1042.",
+          "response_id": "chatcmpl_inc_1042_06",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 36,
+          "result": {
+            "model": "orders_daily",
+            "owner": "revenue-data",
+            "slo_freshness_minutes": 90,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 92,
+          "result": {
+            "model": "orders_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 372,
+            "slo_minutes": 90,
+            "status": "stale",
+            "last_success": "2026-10-28T00:28:00Z"
+          }
+        },
+        "schema.diff": {
+          "latency_ms": 118,
+          "result": {
+            "model": "orders_daily",
+            "baseline": "prod",
+            "breaking": false,
+            "changes": [
+              {
+                "relation": "stg_orders",
+                "change": "add_column",
+                "column": "discount_bps",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "lineage.upstream": {
+          "latency_ms": 104,
+          "result": {
+            "model": "orders_daily",
+            "depth": 2,
+            "blocking": {
+              "kind": "sensor",
+              "name": "raw_orders_arrival",
+              "owner": "platform-ingest"
+            },
+            "nodes": [
+              "orders_daily",
+              "stg_orders",
+              "raw_orders_arrival"
+            ]
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 1500,
+          "error_type": "timeout",
+          "message": "synthetic orchestrator timed out after 1500ms"
+        }
+      }
+    },
+    {
+      "id": "inc-1041",
+      "title": "orders_hourly is inside the freshness SLO",
+      "conversation_id": "conv_inc_1041",
+      "story": "Nine steps, all OK. orders_hourly is inside the 90-minute freshness SLO and sensor raw_orders_arrival answered.",
+      "prompt": "Incident inc-1041. Confirm whether orders_hourly is inside its freshness SLO at 2026-10-28T06:40:00Z and whether anyone should be paged.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 200,
+          "input_tokens": 540,
+          "output_tokens": 42,
+          "text": "Look up orders_hourly in the catalog.",
+          "response_id": "chatcmpl_inc_1041_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1041_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "orders_hourly"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 180,
+          "input_tokens": 690,
+          "output_tokens": 40,
+          "text": "SLO is 90 minutes. Check freshness at the incident time.",
+          "response_id": "chatcmpl_inc_1041_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1041_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "orders_hourly",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 170,
+          "input_tokens": 760,
+          "output_tokens": 36,
+          "text": "Age is 22 minutes. Confirm the arrival sensor is healthy.",
+          "response_id": "chatcmpl_inc_1041_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1041_03",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_orders_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 210,
+          "input_tokens": 820,
+          "output_tokens": 48,
+          "text": "orders_hourly is inside its 90 minute freshness SLO (age 22 minutes). Sensor raw_orders_arrival is healthy (lag 50 seconds). No page.",
+          "response_id": "chatcmpl_inc_1041_04",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 28,
+          "result": {
+            "model": "orders_hourly",
+            "owner": "revenue-data",
+            "slo_freshness_minutes": 90,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 40,
+          "result": {
+            "model": "orders_hourly",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 22,
+            "slo_minutes": 90,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:18:00Z"
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 42,
+          "result": {
+            "sensor": "raw_orders_arrival",
+            "status": "healthy",
+            "lag_seconds": 50,
+            "last_heartbeat": "2026-10-28T06:39:10Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1101",
+      "title": "customers_daily freshness check",
+      "conversation_id": "conv_inc_1101",
+      "story": "Routine check. customers_daily is fresh. The run records a no-page note.",
+      "prompt": "Incident inc-1101. The model customers_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 287,
+          "input_tokens": 623,
+          "output_tokens": 105,
+          "text": "Look up customers_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1101_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1101_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "customers_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 170,
+          "input_tokens": 664,
+          "output_tokens": 46,
+          "text": "Catalog is in. Check freshness for customers_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1101_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1101_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "customers_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 193,
+          "input_tokens": 705,
+          "output_tokens": 57,
+          "text": "Sample recent rows from customers_daily.",
+          "response_id": "chatcmpl_inc_1101_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1101_03",
+              "name": "warehouse.sample",
+              "arguments": {
+                "model": "customers_daily",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 216,
+          "input_tokens": 746,
+          "output_tokens": 68,
+          "text": "Record the triage note on inc-1101.",
+          "response_id": "chatcmpl_inc_1101_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1101_04",
+              "name": "incident.note",
+              "arguments": {
+                "incident_id": "inc-1101",
+                "action": "no_page",
+                "team": "growth-data"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 239,
+          "input_tokens": 787,
+          "output_tokens": 79,
+          "text": "customers_daily is inside its 90 minute SLO (age 40 minutes). No page. Note recorded on inc-1101.",
+          "response_id": "chatcmpl_inc_1101_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 22,
+          "result": {
+            "model": "customers_daily",
+            "owner": "growth-data",
+            "slo_freshness_minutes": 90,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 55,
+          "result": {
+            "model": "customers_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 40,
+            "slo_minutes": 90,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:00:00Z"
+          }
+        },
+        "warehouse.sample": {
+          "latency_ms": 120,
+          "result": {
+            "model": "customers_daily",
+            "rows": 20,
+            "max_event_time": "2026-10-28T06:35:00Z",
+            "null_key_count": 0
+          }
+        },
+        "incident.note": {
+          "latency_ms": 18,
+          "result": {
+            "incident_id": "inc-1101",
+            "recorded": true,
+            "action": "no_page"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1102",
+      "title": "payments_daily schema and sample",
+      "conversation_id": "conv_inc_1102",
+      "story": "payments_daily is fresh. The schema diff is additive and the row sample succeeded.",
+      "prompt": "Incident inc-1102. The model payments_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 184,
+          "input_tokens": 676,
+          "output_tokens": 54,
+          "text": "Look up payments_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1102_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1102_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "payments_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 207,
+          "input_tokens": 717,
+          "output_tokens": 65,
+          "text": "Catalog is in. Check freshness for payments_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1102_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1102_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "payments_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 230,
+          "input_tokens": 758,
+          "output_tokens": 76,
+          "text": "Diff payments_daily against the prod schema before blaming the load.",
+          "response_id": "chatcmpl_inc_1102_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1102_03",
+              "name": "schema.diff",
+              "arguments": {
+                "model": "payments_daily",
+                "baseline": "prod"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 253,
+          "input_tokens": 799,
+          "output_tokens": 87,
+          "text": "Sample recent rows from payments_daily.",
+          "response_id": "chatcmpl_inc_1102_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1102_04",
+              "name": "warehouse.sample",
+              "arguments": {
+                "model": "payments_daily",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 276,
+          "input_tokens": 840,
+          "output_tokens": 98,
+          "text": "payments_daily is inside its 60 minute SLO (age 18 minutes). Schema diff is not breaking. No page.",
+          "response_id": "chatcmpl_inc_1102_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 31,
+          "result": {
+            "model": "payments_daily",
+            "owner": "billing-data",
+            "slo_freshness_minutes": 60,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 70,
+          "result": {
+            "model": "payments_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 18,
+            "slo_minutes": 60,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:22:00Z"
+          }
+        },
+        "schema.diff": {
+          "latency_ms": 90,
+          "result": {
+            "model": "payments_daily",
+            "baseline": "prod",
+            "breaking": false,
+            "changes": [
+              {
+                "relation": "stg_payments",
+                "change": "add_column",
+                "column": "discount_bps",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "warehouse.sample": {
+          "latency_ms": 160,
+          "result": {
+            "model": "payments_daily",
+            "rows": 20,
+            "max_event_time": "2026-10-28T06:35:00Z",
+            "null_key_count": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1103",
+      "title": "refunds_daily warehouse sample failed",
+      "conversation_id": "conv_inc_1103",
+      "story": "warehouse.sample returned HTTP 500. The root span is ERROR with error.type=500.",
+      "prompt": "Incident inc-1103. The model refunds_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 221,
+          "input_tokens": 729,
+          "output_tokens": 73,
+          "text": "Look up refunds_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1103_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1103_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "refunds_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 244,
+          "input_tokens": 770,
+          "output_tokens": 84,
+          "text": "Catalog is in. Check freshness for refunds_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1103_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1103_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "refunds_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 267,
+          "input_tokens": 811,
+          "output_tokens": 95,
+          "text": "Sample recent rows from refunds_daily.",
+          "response_id": "chatcmpl_inc_1103_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1103_03",
+              "name": "warehouse.sample",
+              "arguments": {
+                "model": "refunds_daily",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 290,
+          "input_tokens": 852,
+          "output_tokens": 36,
+          "text": "refunds_daily row sample returned HTTP 500 from the synthetic warehouse. Do not retry. Cite inc-1103.",
+          "response_id": "chatcmpl_inc_1103_04",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 44,
+          "result": {
+            "model": "refunds_daily",
+            "owner": "billing-data",
+            "slo_freshness_minutes": 60,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 66,
+          "result": {
+            "model": "refunds_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 200,
+            "slo_minutes": 60,
+            "status": "stale",
+            "last_success": "2026-10-28T03:20:00Z"
+          }
+        },
+        "warehouse.sample": {
+          "latency_ms": 640,
+          "error_type": "500",
+          "message": "synthetic warehouse returned HTTP 500 for statement sample_refunds_daily"
+        }
+      }
+    },
+    {
+      "id": "inc-1104",
+      "title": "sessions_hourly sensor check",
+      "conversation_id": "conv_inc_1104",
+      "story": "sessions_hourly is fresh and the arrival sensor answered.",
+      "prompt": "Incident inc-1104. The model sessions_hourly was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 258,
+          "input_tokens": 782,
+          "output_tokens": 92,
+          "text": "Look up sessions_hourly in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1104_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1104_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "sessions_hourly"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 281,
+          "input_tokens": 823,
+          "output_tokens": 103,
+          "text": "Catalog is in. Check freshness for sessions_hourly at the incident time.",
+          "response_id": "chatcmpl_inc_1104_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1104_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "sessions_hourly",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 164,
+          "input_tokens": 864,
+          "output_tokens": 44,
+          "text": "Check the arrival sensor for sessions_hourly.",
+          "response_id": "chatcmpl_inc_1104_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1104_03",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_sessions_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 187,
+          "input_tokens": 905,
+          "output_tokens": 55,
+          "text": "sessions_hourly is inside its 30 minute SLO (age 12 minutes). Arrival sensor is healthy. No page.",
+          "response_id": "chatcmpl_inc_1104_04",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 26,
+          "result": {
+            "model": "sessions_hourly",
+            "owner": "growth-data",
+            "slo_freshness_minutes": 30,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 48,
+          "result": {
+            "model": "sessions_hourly",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 12,
+            "slo_minutes": 30,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:28:00Z"
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 55,
+          "result": {
+            "sensor": "raw_sessions_arrival",
+            "status": "healthy",
+            "lag_seconds": 20,
+            "last_heartbeat": "2026-10-28T06:39:10Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1105",
+      "title": "inventory_snapshot lineage",
+      "conversation_id": "conv_inc_1105",
+      "story": "inventory_snapshot is fresh. Lineage names the arrival sensor, which answered.",
+      "prompt": "Incident inc-1105. The model inventory_snapshot was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 295,
+          "input_tokens": 835,
+          "output_tokens": 41,
+          "text": "Look up inventory_snapshot in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1105_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1105_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "inventory_snapshot"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 178,
+          "input_tokens": 876,
+          "output_tokens": 52,
+          "text": "Catalog is in. Check freshness for inventory_snapshot at the incident time.",
+          "response_id": "chatcmpl_inc_1105_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1105_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "inventory_snapshot",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 201,
+          "input_tokens": 917,
+          "output_tokens": 63,
+          "text": "Walk upstream lineage for inventory_snapshot and name the blocking node.",
+          "response_id": "chatcmpl_inc_1105_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1105_03",
+              "name": "lineage.upstream",
+              "arguments": {
+                "model": "inventory_snapshot",
+                "depth": 2
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 224,
+          "input_tokens": 958,
+          "output_tokens": 74,
+          "text": "Check the arrival sensor for inventory_snapshot.",
+          "response_id": "chatcmpl_inc_1105_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1105_04",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_inventory_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 247,
+          "input_tokens": 999,
+          "output_tokens": 85,
+          "text": "inventory_snapshot is inside its 180 minute SLO (age 50 minutes). Sensor is healthy. No page.",
+          "response_id": "chatcmpl_inc_1105_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 33,
+          "result": {
+            "model": "inventory_snapshot",
+            "owner": "revenue-data",
+            "slo_freshness_minutes": 180,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 80,
+          "result": {
+            "model": "inventory_snapshot",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 50,
+            "slo_minutes": 180,
+            "status": "fresh",
+            "last_success": "2026-10-28T05:50:00Z"
+          }
+        },
+        "lineage.upstream": {
+          "latency_ms": 88,
+          "result": {
+            "model": "inventory_snapshot",
+            "depth": 2,
+            "blocking": {
+              "kind": "sensor",
+              "name": "raw_inventory_arrival",
+              "owner": "platform-ingest"
+            },
+            "nodes": [
+              "inventory_snapshot",
+              "stg_inventory",
+              "raw_inventory_arrival"
+            ]
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 61,
+          "result": {
+            "sensor": "raw_inventory_arrival",
+            "status": "healthy",
+            "lag_seconds": 40,
+            "last_heartbeat": "2026-10-28T06:39:10Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1106",
+      "title": "clicks_raw sensor timed out",
+      "conversation_id": "conv_inc_1106",
+      "story": "A shorter failing run. sensor.status timed out after lineage named raw_clicks_arrival.",
+      "prompt": "Incident inc-1106. The model clicks_raw was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 192,
+          "input_tokens": 888,
+          "output_tokens": 60,
+          "text": "Look up clicks_raw in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1106_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1106_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "clicks_raw"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 215,
+          "input_tokens": 929,
+          "output_tokens": 71,
+          "text": "Catalog is in. Check freshness for clicks_raw at the incident time.",
+          "response_id": "chatcmpl_inc_1106_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1106_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "clicks_raw",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 238,
+          "input_tokens": 970,
+          "output_tokens": 82,
+          "text": "Walk upstream lineage for clicks_raw and name the blocking node.",
+          "response_id": "chatcmpl_inc_1106_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1106_03",
+              "name": "lineage.upstream",
+              "arguments": {
+                "model": "clicks_raw",
+                "depth": 2
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 261,
+          "input_tokens": 1011,
+          "output_tokens": 93,
+          "text": "Check the arrival sensor for clicks_raw.",
+          "response_id": "chatcmpl_inc_1106_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1106_04",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_clicks_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 284,
+          "input_tokens": 552,
+          "output_tokens": 104,
+          "text": "clicks_raw is stale and sensor.status timed out, so the block is unconfirmed. Do not retry. Cite inc-1106.",
+          "response_id": "chatcmpl_inc_1106_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 41,
+          "result": {
+            "model": "clicks_raw",
+            "owner": "growth-data",
+            "slo_freshness_minutes": 45,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 74,
+          "result": {
+            "model": "clicks_raw",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 300,
+            "slo_minutes": 45,
+            "status": "stale",
+            "last_success": "2026-10-28T01:40:00Z"
+          }
+        },
+        "lineage.upstream": {
+          "latency_ms": 96,
+          "result": {
+            "model": "clicks_raw",
+            "depth": 2,
+            "blocking": {
+              "kind": "sensor",
+              "name": "raw_clicks_arrival",
+              "owner": "platform-ingest"
+            },
+            "nodes": [
+              "clicks_raw",
+              "stg_clicks",
+              "raw_clicks_arrival"
+            ]
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 1400,
+          "error_type": "timeout",
+          "message": "synthetic orchestrator timed out after 1500ms"
+        }
+      }
+    },
+    {
+      "id": "inc-1107",
+      "title": "shipments_daily schema diff",
+      "conversation_id": "conv_inc_1107",
+      "story": "shipments_daily is fresh. The schema change is additive.",
+      "prompt": "Incident inc-1107. The model shipments_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 229,
+          "input_tokens": 941,
+          "output_tokens": 79,
+          "text": "Look up shipments_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1107_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1107_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "shipments_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 252,
+          "input_tokens": 982,
+          "output_tokens": 90,
+          "text": "Catalog is in. Check freshness for shipments_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1107_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1107_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "shipments_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 275,
+          "input_tokens": 1023,
+          "output_tokens": 101,
+          "text": "Diff shipments_daily against the prod schema before blaming the load.",
+          "response_id": "chatcmpl_inc_1107_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1107_03",
+              "name": "schema.diff",
+              "arguments": {
+                "model": "shipments_daily",
+                "baseline": "prod"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 298,
+          "input_tokens": 564,
+          "output_tokens": 42,
+          "text": "Sample recent rows from shipments_daily.",
+          "response_id": "chatcmpl_inc_1107_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1107_04",
+              "name": "warehouse.sample",
+              "arguments": {
+                "model": "shipments_daily",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 181,
+          "input_tokens": 605,
+          "output_tokens": 53,
+          "text": "shipments_daily is inside its 120 minute SLO (age 30 minutes). Schema diff is not breaking. No page.",
+          "response_id": "chatcmpl_inc_1107_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 24,
+          "result": {
+            "model": "shipments_daily",
+            "owner": "revenue-data",
+            "slo_freshness_minutes": 120,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 58,
+          "result": {
+            "model": "shipments_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 30,
+            "slo_minutes": 120,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:10:00Z"
+          }
+        },
+        "schema.diff": {
+          "latency_ms": 130,
+          "result": {
+            "model": "shipments_daily",
+            "baseline": "prod",
+            "breaking": false,
+            "changes": [
+              {
+                "relation": "stg_shipments",
+                "change": "add_column",
+                "column": "discount_bps",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "warehouse.sample": {
+          "latency_ms": 140,
+          "result": {
+            "model": "shipments_daily",
+            "rows": 20,
+            "max_event_time": "2026-10-28T06:35:00Z",
+            "null_key_count": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1108",
+      "title": "invoices_daily breaking schema, tools succeeded",
+      "conversation_id": "conv_inc_1108",
+      "story": "The business answer is do-not-retry, but every tool succeeded. The trace stays OK. Trace status follows the checks, not the verdict.",
+      "prompt": "Incident inc-1108. The model invoices_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 266,
+          "input_tokens": 994,
+          "output_tokens": 98,
+          "text": "Look up invoices_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1108_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1108_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "invoices_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 289,
+          "input_tokens": 1035,
+          "output_tokens": 39,
+          "text": "Catalog is in. Check freshness for invoices_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1108_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1108_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "invoices_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 172,
+          "input_tokens": 576,
+          "output_tokens": 50,
+          "text": "Diff invoices_daily against the prod schema before blaming the load.",
+          "response_id": "chatcmpl_inc_1108_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1108_03",
+              "name": "schema.diff",
+              "arguments": {
+                "model": "invoices_daily",
+                "baseline": "prod"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 195,
+          "input_tokens": 617,
+          "output_tokens": 61,
+          "text": "Record the triage note on inc-1108.",
+          "response_id": "chatcmpl_inc_1108_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1108_04",
+              "name": "incident.note",
+              "arguments": {
+                "incident_id": "inc-1108",
+                "action": "page",
+                "team": "platform-ingest"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 218,
+          "input_tokens": 658,
+          "output_tokens": 72,
+          "text": "invoices_daily schema diff is breaking (amount_cents renamed). Do not retry the load. Page billing-data. Cite inc-1108.",
+          "response_id": "chatcmpl_inc_1108_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 38,
+          "result": {
+            "model": "invoices_daily",
+            "owner": "billing-data",
+            "slo_freshness_minutes": 90,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 63,
+          "result": {
+            "model": "invoices_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 15,
+            "slo_minutes": 90,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:25:00Z"
+          }
+        },
+        "schema.diff": {
+          "latency_ms": 150,
+          "result": {
+            "model": "invoices_daily",
+            "baseline": "prod",
+            "breaking": true,
+            "changes": [
+              {
+                "relation": "invoices_daily",
+                "change": "rename_column",
+                "from": "amount_cents",
+                "to": "amount_minor"
+              }
+            ]
+          }
+        },
+        "incident.note": {
+          "latency_ms": 22,
+          "result": {
+            "incident_id": "inc-1108",
+            "recorded": true,
+            "action": "page"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1109",
+      "title": "accounts_daily row sample",
+      "conversation_id": "conv_inc_1109",
+      "story": "accounts_daily is fresh. The sample has 3 null keys and a no-page note.",
+      "prompt": "Incident inc-1109. The model accounts_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 163,
+          "input_tokens": 547,
+          "output_tokens": 47,
+          "text": "Look up accounts_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1109_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1109_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "accounts_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 186,
+          "input_tokens": 588,
+          "output_tokens": 58,
+          "text": "Catalog is in. Check freshness for accounts_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1109_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1109_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "accounts_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 209,
+          "input_tokens": 629,
+          "output_tokens": 69,
+          "text": "Sample recent rows from accounts_daily.",
+          "response_id": "chatcmpl_inc_1109_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1109_03",
+              "name": "warehouse.sample",
+              "arguments": {
+                "model": "accounts_daily",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 232,
+          "input_tokens": 670,
+          "output_tokens": 80,
+          "text": "Record the triage note on inc-1109.",
+          "response_id": "chatcmpl_inc_1109_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1109_04",
+              "name": "incident.note",
+              "arguments": {
+                "incident_id": "inc-1109",
+                "action": "no_page",
+                "team": "billing-data"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 255,
+          "input_tokens": 711,
+          "output_tokens": 91,
+          "text": "accounts_daily is inside its 90 minute SLO (age 44 minutes). Sample returned 3 null keys. No page.",
+          "response_id": "chatcmpl_inc_1109_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 29,
+          "result": {
+            "model": "accounts_daily",
+            "owner": "billing-data",
+            "slo_freshness_minutes": 90,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 51,
+          "result": {
+            "model": "accounts_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 44,
+            "slo_minutes": 90,
+            "status": "fresh",
+            "last_success": "2026-10-28T05:56:00Z"
+          }
+        },
+        "warehouse.sample": {
+          "latency_ms": 180,
+          "result": {
+            "model": "accounts_daily",
+            "rows": 20,
+            "max_event_time": "2026-10-28T06:35:00Z",
+            "null_key_count": 3
+          }
+        },
+        "incident.note": {
+          "latency_ms": 16,
+          "result": {
+            "incident_id": "inc-1109",
+            "recorded": true,
+            "action": "no_page"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1110",
+      "title": "subscriptions_daily slow freshness read",
+      "conversation_id": "conv_inc_1110",
+      "story": "The model is fresh. freshness.check took 460 ms, which pulls the tool's p95 up.",
+      "prompt": "Incident inc-1110. The model subscriptions_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 200,
+          "input_tokens": 600,
+          "output_tokens": 66,
+          "text": "Look up subscriptions_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1110_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1110_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "subscriptions_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 223,
+          "input_tokens": 641,
+          "output_tokens": 77,
+          "text": "Catalog is in. Check freshness for subscriptions_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1110_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1110_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "subscriptions_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 246,
+          "input_tokens": 682,
+          "output_tokens": 88,
+          "text": "Check the arrival sensor for subscriptions_daily.",
+          "response_id": "chatcmpl_inc_1110_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1110_03",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_subscriptions_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 269,
+          "input_tokens": 723,
+          "output_tokens": 99,
+          "text": "subscriptions_daily is inside its 90 minute SLO (age 25 minutes). Sensor is healthy. No page.",
+          "response_id": "chatcmpl_inc_1110_04",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 52,
+          "result": {
+            "model": "subscriptions_daily",
+            "owner": "billing-data",
+            "slo_freshness_minutes": 90,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 460,
+          "result": {
+            "model": "subscriptions_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 25,
+            "slo_minutes": 90,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:15:00Z"
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 48,
+          "result": {
+            "sensor": "raw_subscriptions_arrival",
+            "status": "healthy",
+            "lag_seconds": 15,
+            "last_heartbeat": "2026-10-28T06:39:10Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1111",
+      "title": "tickets_daily schema diff",
+      "conversation_id": "conv_inc_1111",
+      "story": "tickets_daily is fresh and the schema diff is additive.",
+      "prompt": "Incident inc-1111. The model tickets_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 237,
+          "input_tokens": 653,
+          "output_tokens": 85,
+          "text": "Look up tickets_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1111_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1111_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "tickets_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 260,
+          "input_tokens": 694,
+          "output_tokens": 96,
+          "text": "Catalog is in. Check freshness for tickets_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1111_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1111_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "tickets_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 283,
+          "input_tokens": 735,
+          "output_tokens": 37,
+          "text": "Diff tickets_daily against the prod schema before blaming the load.",
+          "response_id": "chatcmpl_inc_1111_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1111_03",
+              "name": "schema.diff",
+              "arguments": {
+                "model": "tickets_daily",
+                "baseline": "prod"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 166,
+          "input_tokens": 776,
+          "output_tokens": 48,
+          "text": "tickets_daily is inside its 60 minute SLO (age 20 minutes). Schema diff is not breaking. No page.",
+          "response_id": "chatcmpl_inc_1111_04",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 35,
+          "result": {
+            "model": "tickets_daily",
+            "owner": "support-data",
+            "slo_freshness_minutes": 60,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 77,
+          "result": {
+            "model": "tickets_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 20,
+            "slo_minutes": 60,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:20:00Z"
+          }
+        },
+        "schema.diff": {
+          "latency_ms": 102,
+          "result": {
+            "model": "tickets_daily",
+            "baseline": "prod",
+            "breaking": false,
+            "changes": [
+              {
+                "relation": "stg_tickets",
+                "change": "add_column",
+                "column": "discount_bps",
+                "nullable": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1112",
+      "title": "events_hourly lineage",
+      "conversation_id": "conv_inc_1112",
+      "story": "events_hourly is fresh. Lineage names the arrival sensor.",
+      "prompt": "Incident inc-1112. The model events_hourly was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 274,
+          "input_tokens": 706,
+          "output_tokens": 104,
+          "text": "Look up events_hourly in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1112_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1112_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "events_hourly"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 297,
+          "input_tokens": 747,
+          "output_tokens": 45,
+          "text": "Catalog is in. Check freshness for events_hourly at the incident time.",
+          "response_id": "chatcmpl_inc_1112_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1112_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "events_hourly",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 180,
+          "input_tokens": 788,
+          "output_tokens": 56,
+          "text": "Walk upstream lineage for events_hourly and name the blocking node.",
+          "response_id": "chatcmpl_inc_1112_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1112_03",
+              "name": "lineage.upstream",
+              "arguments": {
+                "model": "events_hourly",
+                "depth": 2
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 203,
+          "input_tokens": 829,
+          "output_tokens": 67,
+          "text": "events_hourly is inside its 30 minute SLO (age 9 minutes). No page.",
+          "response_id": "chatcmpl_inc_1112_04",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 27,
+          "result": {
+            "model": "events_hourly",
+            "owner": "growth-data",
+            "slo_freshness_minutes": 30,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 69,
+          "result": {
+            "model": "events_hourly",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 9,
+            "slo_minutes": 30,
+            "status": "fresh",
+            "last_success": "2026-10-28T06:31:00Z"
+          }
+        },
+        "lineage.upstream": {
+          "latency_ms": 124,
+          "result": {
+            "model": "events_hourly",
+            "depth": 2,
+            "blocking": {
+              "kind": "sensor",
+              "name": "raw_events_arrival",
+              "owner": "platform-ingest"
+            },
+            "nodes": [
+              "events_hourly",
+              "stg_events",
+              "raw_events_arrival"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1113",
+      "title": "pages_daily sample",
+      "conversation_id": "conv_inc_1113",
+      "story": "pages_daily is fresh. Schema diff is additive and the sample succeeded.",
+      "prompt": "Incident inc-1113. The model pages_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 171,
+          "input_tokens": 759,
+          "output_tokens": 53,
+          "text": "Look up pages_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1113_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1113_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "pages_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 194,
+          "input_tokens": 800,
+          "output_tokens": 64,
+          "text": "Catalog is in. Check freshness for pages_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1113_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1113_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "pages_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 217,
+          "input_tokens": 841,
+          "output_tokens": 75,
+          "text": "Diff pages_daily against the prod schema before blaming the load.",
+          "response_id": "chatcmpl_inc_1113_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1113_03",
+              "name": "schema.diff",
+              "arguments": {
+                "model": "pages_daily",
+                "baseline": "prod"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 240,
+          "input_tokens": 882,
+          "output_tokens": 86,
+          "text": "Sample recent rows from pages_daily.",
+          "response_id": "chatcmpl_inc_1113_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1113_04",
+              "name": "warehouse.sample",
+              "arguments": {
+                "model": "pages_daily",
+                "limit": 20
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 263,
+          "input_tokens": 923,
+          "output_tokens": 97,
+          "text": "pages_daily is inside its 120 minute SLO (age 80 minutes). Schema diff is not breaking. No page.",
+          "response_id": "chatcmpl_inc_1113_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 48,
+          "result": {
+            "model": "pages_daily",
+            "owner": "growth-data",
+            "slo_freshness_minutes": 120,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 84,
+          "result": {
+            "model": "pages_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 80,
+            "slo_minutes": 120,
+            "status": "fresh",
+            "last_success": "2026-10-28T05:20:00Z"
+          }
+        },
+        "schema.diff": {
+          "latency_ms": 110,
+          "result": {
+            "model": "pages_daily",
+            "baseline": "prod",
+            "breaking": false,
+            "changes": [
+              {
+                "relation": "stg_pages",
+                "change": "add_column",
+                "column": "discount_bps",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "warehouse.sample": {
+          "latency_ms": 210,
+          "result": {
+            "model": "pages_daily",
+            "rows": 20,
+            "max_event_time": "2026-10-28T06:35:00Z",
+            "null_key_count": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "inc-1114",
+      "title": "devices_daily sensor and note",
+      "conversation_id": "conv_inc_1114",
+      "story": "devices_daily is fresh. The sensor answered and a no-page note was recorded.",
+      "prompt": "Incident inc-1114. The model devices_daily was flagged at 2026-10-28T06:40:00Z. Determine whether it is inside its freshness SLO and whether the load is safe to retry.",
+      "replay": [
+        {
+          "phase": "plan",
+          "duration_ms": 208,
+          "input_tokens": 812,
+          "output_tokens": 72,
+          "text": "Look up devices_daily in the catalog before trusting the page.",
+          "response_id": "chatcmpl_inc_1114_01",
+          "tool_calls": [
+            {
+              "id": "call_inc_1114_01",
+              "name": "catalog.lookup",
+              "arguments": {
+                "model": "devices_daily"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 231,
+          "input_tokens": 853,
+          "output_tokens": 83,
+          "text": "Catalog is in. Check freshness for devices_daily at the incident time.",
+          "response_id": "chatcmpl_inc_1114_02",
+          "tool_calls": [
+            {
+              "id": "call_inc_1114_02",
+              "name": "freshness.check",
+              "arguments": {
+                "model": "devices_daily",
+                "as_of": "2026-10-28T06:40:00Z"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 254,
+          "input_tokens": 894,
+          "output_tokens": 94,
+          "text": "Check the arrival sensor for devices_daily.",
+          "response_id": "chatcmpl_inc_1114_03",
+          "tool_calls": [
+            {
+              "id": "call_inc_1114_03",
+              "name": "sensor.status",
+              "arguments": {
+                "sensor": "raw_devices_arrival"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "reason",
+          "duration_ms": 277,
+          "input_tokens": 935,
+          "output_tokens": 105,
+          "text": "Record the triage note on inc-1114.",
+          "response_id": "chatcmpl_inc_1114_04",
+          "tool_calls": [
+            {
+              "id": "call_inc_1114_04",
+              "name": "incident.note",
+              "arguments": {
+                "incident_id": "inc-1114",
+                "action": "no_page",
+                "team": "revenue-data"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "finalize",
+          "duration_ms": 160,
+          "input_tokens": 976,
+          "output_tokens": 46,
+          "text": "devices_daily is inside its 180 minute SLO (age 100 minutes). Sensor is healthy. No page.",
+          "response_id": "chatcmpl_inc_1114_05",
+          "finish_reason": "stop"
+        }
+      ],
+      "fixtures": {
+        "catalog.lookup": {
+          "latency_ms": 61,
+          "result": {
+            "model": "devices_daily",
+            "owner": "revenue-data",
+            "slo_freshness_minutes": 180,
+            "materialization": "table",
+            "warehouse": "wh_prod"
+          }
+        },
+        "freshness.check": {
+          "latency_ms": 45,
+          "result": {
+            "model": "devices_daily",
+            "as_of": "2026-10-28T06:40:00Z",
+            "age_minutes": 100,
+            "slo_minutes": 180,
+            "status": "fresh",
+            "last_success": "2026-10-28T05:00:00Z"
+          }
+        },
+        "sensor.status": {
+          "latency_ms": 36,
+          "result": {
+            "sensor": "raw_devices_arrival",
+            "status": "healthy",
+            "lag_seconds": 80,
+            "last_heartbeat": "2026-10-28T06:39:10Z"
+          }
+        },
+        "incident.note": {
+          "latency_ms": 20,
+          "result": {
+            "incident_id": "inc-1114",
+            "recorded": true,
+            "action": "no_page"
+          }
+        }
+      }
+    }
+  ]
+}
